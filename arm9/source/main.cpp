@@ -20,12 +20,19 @@ int wait(bool cancel=false){
 }
 
 void save (auxspi_extra card_type, char gameid[]) {
+	consoleClear();
 	uint8* buffer;
 	uint8 size = auxspi_save_size_log_2(card_type);
 	int size_blocks = 1 << std::max(0, (int8(size) - 18));
 	uint8 type = auxspi_save_type(card_type);
 	FILE * pFile;
-	sprintf(txt, "saves/%s.sav", gameid);
+	iprintf("Press A to save the savefile as \"%s.sav\".\nPress X to save the savefile as\n\"save.sav\" (use this if garbage\ntext is displayed)\n", gameid);
+	while(1) {
+		swiWaitForVBlank();
+		scanKeys();
+		if(keysDown()&KEY_A) {sprintf(txt, "saves/%s.sav", gameid); break;}
+		if(keysDown()&KEY_X) {sprintf(txt, "saves/save.sav"); break;}
+	}
 	pFile = fopen (txt,"w+");
 	if(pFile!=NULL){
 		iprintf("Creating the savefile\n");
@@ -48,8 +55,15 @@ void save (auxspi_extra card_type, char gameid[]) {
 	return;
 }
 void restore (auxspi_extra card_type, char gameid[]) {
+	consoleClear();
 	FILE * pFile;
-	sprintf(txt, "saves/%s.sav", gameid);
+	iprintf("Press A to load %s.sav.\nPress X to load \"save.sav\" (use this if garbage text is\ndisplayed)\n", gameid);
+	while(1) {
+		swiWaitForVBlank();
+		scanKeys();
+		if(keysDown()&KEY_A) {sprintf(txt, "saves/%s.sav", gameid); break;}
+		if(keysDown()&KEY_X) {sprintf(txt, "saves/save.sav"); break;}
+	}
 	pFile = fopen (txt,"rb");
 	if(pFile==NULL){
 		iprintf("Savefile not found!\n");
