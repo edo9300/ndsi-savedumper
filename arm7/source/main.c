@@ -23,17 +23,6 @@
 
 volatile bool exitflag = false;
 
-int PowerOnSlot() {
-    REG_SCFG_MC = 0x04;    // set state=1
-    while(REG_SCFG_MC&1);
-    
-    REG_SCFG_MC = 0x08;    // set state=2      
-    while(REG_SCFG_MC&1);
-    
-    REG_ROMCTRL = 0x20000000; // set ROMCTRL=20000000h
-    return 0;
-}
-
 void powerButtonCB() {
 //---------------------------------------------------------------------------------
 	exitflag = true;
@@ -69,12 +58,6 @@ int main(void) {
 	irqEnable( IRQ_VBLANK | IRQ_VCOUNT);
 
 	setPowerButtonCB(powerButtonCB);
-	
-	// Make sure Arm9 had a chance to check slot status
-	fifoWaitValue32(FIFO_USER_01);
-	// If Arm9 reported slot is powered off, have Arm7 wait for Arm9 to be ready before card reset. This makes sure arm7 doesn't try card reset too early.
-	if(fifoCheckValue32(FIFO_USER_02)) { PowerOnSlot(); }
-	fifoSendValue32(FIFO_USER_03, 1);
 
 	// Keep the ARM7 mostly idle
 	while (!exitflag) {

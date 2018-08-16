@@ -115,6 +115,42 @@ void displayInit()
 	vramSetBankC(VRAM_C_SUB_BG);
 	consoleInit(&lowerScreen, 3,BgType_Text4bpp, BgSize_T_256x256, 31, 0, false, true);
 }
+
+void WaitCard(){
+	while(REG_SCFG_MC == 0x11){}
+	disableSlot1();
+	for (int i = 0; i < 25; i++) { swiWaitForVBlank(); }
+	enableSlot1();
+	
+}
+
+bool UpdateCardInfo(sNDSHeader* nds,char* gameid,char* gamename){
+	cardReadHeader((uint8*)nds);
+	slot_1_type = auxspi_has_extra();
+	int type = cardEepromGetType();
+	int size = cardEepromGetSize();
+	if(type==999 || size==0){
+		iprintf("Type %d\n",type);
+		iprintf("Size %d\n",size);
+		return false;
+	}
+	memcpy(gameid, nds->gameCode, 4);
+	gameid[4] = 0x00;
+	memcpy(gamename, nds->gameTitle, 12);
+	gamename[12] = 0x00;
+	return true;
+}
+
+void PrintMenu(char gameid[],char gamename[]){
+	consoleClear();
+	iprintf(gameid);
+	iprintf("\n");
+	iprintf(gamename);
+	iprintf("\n");
+	iprintf("Press A to dump the save from\nyour cartige, press B to restore");
+	iprintf("\n");
+}
+
 //---------------------------------------------------------------------------------
 int main() {
 	displayInit();
@@ -126,20 +162,16 @@ int main() {
 	iprintf("Savegame manager by edo9300");
 	consoleSelect(&lowerScreen);
 	consoleClear();
-	// If slot is powered off, tell Arm7 slot power on is required.
-	if(REG_SCFG_MC == 0x11) { fifoSendValue32(FIFO_USER_02, 1); }
-	if(REG_SCFG_MC == 0x10) { fifoSendValue32(FIFO_USER_02, 1); }
-
-	if(REG_SCFG_MC == 0x11) {
-		iprintf("No cartridge detected!\nPlease insert a cartridge to continue!\n");
-		do { swiWaitForVBlank(); } while (REG_SCFG_MC == 0x11);
-		for (int i = 0; i < 20; i++) { swiWaitForVBlank(); }
+	WaitCard();
+	if (REG_SCFG_MC == 0x11) {
+		iprintf("No cartridge detected!\nPlease insert a cartridge to\ncontinue!\n");
+		WaitCard();
 	}
-	
-	// Tell Arm7 it's ready for card reset (if card reset is nessecery)
-	fifoSendValue32(FIFO_USER_01, 1);
-	// Waits for Arm7 to finish card reset (if nessecery)
-	fifoWaitValue32(FIFO_USER_03);
+	if(REG_SCFG_MC == 0x10) { 
+		disableSlot1();
+		for (int i = 0; i < 25; i++) { swiWaitForVBlank(); }
+		enableSlot1();
+	}
 	
 	if(!fatInitDefault()){
 		iprintf("SD init failed");
@@ -151,48 +183,33 @@ int main() {
 	// Delay half a second for the DS card to stabilise
 	for (int i = 0; i < 30; i++) { swiWaitForVBlank(); }
 	
-	cardReadHeader((uint8*)&nds);
-	slot_1_type = auxspi_has_extra();
-	int type = cardEepromGetType();
-	int size = cardEepromGetSize();
-	iprintf("Type %d\n",type);
-	iprintf("Size %d\n",size);
-	if(type==999 || size==0){
-		iprintf("Cartige not read properly, please restart the program");
-		while(1){}
+	while(!UpdateCardInfo(&nds,&gameid[0],&gamename[0])) {
+		consoleClear();
+		iprintf("Cartige not read properly,\nplease reinsert it");
+		WaitCard();
 	}
-	memcpy(&gameid[0], &nds.gameCode[0], 4);
-			gameid[4] = 0x00;
-	memcpy(&gamename[0], &nds.gameTitle[0], 12);
-			gamename[12] = 0x00;
-	iprintf(gameid);
-	iprintf("\n");
-	iprintf(nds.gameTitle);
-	iprintf("\n");
-	iprintf("Press A to dump the save from\nyour cartige, press B to restore");
-	iprintf("\n");
+	PrintMenu(gameid, gamename);
 	while(1) {
 		swiWaitForVBlank();
+		if(REG_SCFG_MC == 0x11){
+			consoleClear();
+			iprintf("The cartridge was removed!\nPlease insert a cartridge to\ncontinue!\n");
+			WaitCard();
+			while(!UpdateCardInfo(&nds,&gameid[0],&gamename[0])) {
+				consoleClear();
+				iprintf("Cartige not read properly,\nplease reinsert it");
+				WaitCard();
+			}
+			PrintMenu(gameid, gamename);
+		}
 		scanKeys();
 		if(keysDown()&KEY_A) {
 			save();
-			consoleClear();
-			iprintf(gameid);
-			iprintf("\n");
-			iprintf(nds.gameTitle);
-			iprintf("\n");
-			iprintf("Press A to dump the save from\nyour cartige, press B to restore");
-			iprintf("\n");
+			PrintMenu(gameid, gamename);
 		}
 		else if(keysDown()&KEY_B) {
 			restore();
-			consoleClear();
-			iprintf(gameid);
-			iprintf("\n");
-			iprintf(nds.gameTitle);
-			iprintf("\n");
-			iprintf("Press A to dump the save from\nyour cartige, press B to restore");
-			iprintf("\n");
+			PrintMenu(gameid, gamename);
 		}
 	}
 	return 0;
