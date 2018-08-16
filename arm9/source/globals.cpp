@@ -28,15 +28,11 @@
 u8 *data;
 u32 size_buf;
 
-auxspi_extra slot_1_type = AUXSPI_FLASH_CARD;
-
 int ir_delay = 1200;
 
 char device[16] = "/";
 
 char txt[256] = "";
-
-char gameid[5] = "";
 
 u32 extra_id[EXTRA_ARRAY_SIZE];
 u8 extra_size[EXTRA_ARRAY_SIZE];

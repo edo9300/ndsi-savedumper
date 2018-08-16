@@ -32,8 +32,6 @@
 extern u8 *data;
 extern u32 size_buf;
 
-extern auxspi_extra slot_1_type;
-
 extern int ir_delay;
 
 // all libfat access will be using this device. default value = "/", i.e. "default" DLDI device
@@ -41,9 +39,6 @@ extern char device[16];
 
 // text buffer for composing various messages
 extern char txt[256];
-
-//text buffer to create saves
-extern char gameid[5];
 
 // this should be enough for the forseeable future
 #define EXTRA_ARRAY_SIZE 16

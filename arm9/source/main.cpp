@@ -19,11 +19,11 @@ int wait(bool cancel=false){
 	return 0;
 }
 
-void save () {
+void save (auxspi_extra card_type, char gameid[]) {
 	uint8* buffer;
-	uint8 size = auxspi_save_size_log_2(slot_1_type);
+	uint8 size = auxspi_save_size_log_2(card_type);
 	int size_blocks = 1 << std::max(0, (int8(size) - 18));
-	uint8 type = auxspi_save_type(slot_1_type);
+	uint8 type = auxspi_save_type(card_type);
 	FILE * pFile;
 	sprintf(txt, "saves/%s.sav", gameid);
 	pFile = fopen (txt,"w+");
@@ -35,7 +35,7 @@ void save () {
 			size_blocks = 1 << (size - 16);
 		u32 LEN = std::min(1 << size, 1 << 16);
 		buffer = (u8 *)malloc(LEN*size_blocks);
-		auxspi_read_data(0, buffer, LEN*size_blocks, type, slot_1_type);
+		auxspi_read_data(0, buffer, LEN*size_blocks, type, card_type);
 		fwrite(buffer, 1, LEN*size_blocks, pFile);
 		fclose(pFile);
 		free(buffer);
@@ -47,7 +47,7 @@ void save () {
 	wait();
 	return;
 }
-void restore () {
+void restore (auxspi_extra card_type, char gameid[]) {
 	FILE * pFile;
 	sprintf(txt, "saves/%s.sav", gameid);
 	pFile = fopen (txt,"rb");
@@ -55,14 +55,14 @@ void restore () {
 		iprintf("Savefile not found!\n");
 	} else {
 		uint8* buffer;
-		uint8 size = auxspi_save_size_log_2(slot_1_type);
-		uint8 type = auxspi_save_type(slot_1_type);
+		uint8 size = auxspi_save_size_log_2(card_type);
+		uint8 type = auxspi_save_type(card_type);
 		if (type == 3) {
 			iprintf("The savefile in the cartige has to be cleared, press A to\ncontinue, B to cancel\n");
 			if(wait(true)==KEY_B)
 				return;
 			iprintf("Deleting the previous savefile\n");
-			auxspi_erase(slot_1_type);
+			auxspi_erase(card_type);
 			iprintf("Savefile deleted\n");
 		}
 		u32 num_blocks = 0, shift = 0;
@@ -92,7 +92,7 @@ void restore () {
 			if (i % step == 0)
 				iprintf("#");
 			fread(buffer, 1, LEN, pFile);
-			auxspi_write_data(i << shift, buffer, LEN, type, slot_1_type);
+			auxspi_write_data(i << shift, buffer, LEN, type, card_type);
 		}
 		fclose(pFile);
 		free(buffer);
@@ -117,19 +117,20 @@ void displayInit()
 }
 
 void WaitCard(){
-	while(REG_SCFG_MC == 0x11){}
+	do { swiWaitForVBlank(); } while (REG_SCFG_MC == 0x11);
 	disableSlot1();
 	for (int i = 0; i < 25; i++) { swiWaitForVBlank(); }
 	enableSlot1();
-	
+	// Delay half a second for the DS card to stabilise
+	for (int i = 0; i < 30; i++) { swiWaitForVBlank(); }
 }
 
-bool UpdateCardInfo(sNDSHeader* nds,char* gameid,char* gamename){
+bool UpdateCardInfo(sNDSHeader* nds,char* gameid,char* gamename, auxspi_extra* card_type){
 	cardReadHeader((uint8*)nds);
-	slot_1_type = auxspi_has_extra();
+	*card_type = auxspi_has_extra();
 	int type = cardEepromGetType();
 	int size = cardEepromGetSize();
-	if(type==999 || size==0){
+	if(type==999 || size < 1){
 		iprintf("Type %d\n",type);
 		iprintf("Size %d\n",size);
 		return false;
@@ -154,15 +155,18 @@ void PrintMenu(char gameid[],char gamename[]){
 //---------------------------------------------------------------------------------
 int main() {
 	displayInit();
+	auxspi_extra card_type = AUXSPI_FLASH_CARD;
 	sNDSHeader nds;
+	nds.gameCode[0] = 0;
 	nds.gameTitle[0] = 0;
 	char gamename[13];
+	char gameid[5];
 	consoleSelect(&upperScreen);
 	consoleClear();
 	iprintf("Savegame manager by edo9300");
 	consoleSelect(&lowerScreen);
 	consoleClear();
-	WaitCard();
+	sysSetCardOwner (BUS_OWNER_ARM9);
 	if (REG_SCFG_MC == 0x11) {
 		iprintf("No cartridge detected!\nPlease insert a cartridge to\ncontinue!\n");
 		WaitCard();
@@ -178,14 +182,11 @@ int main() {
 		while(1) swiWaitForVBlank();
 	}
 	
-	sysSetCardOwner (BUS_OWNER_ARM9);
-
-	// Delay half a second for the DS card to stabilise
-	for (int i = 0; i < 30; i++) { swiWaitForVBlank(); }
-	
-	while(!UpdateCardInfo(&nds,&gameid[0],&gamename[0])) {
+	while(!UpdateCardInfo(&nds,&gameid[0],&gamename[0], &card_type)) {
 		consoleClear();
-		iprintf("Cartige not read properly,\nplease reinsert it");
+		iprintf("Cartige not read properly!\nPlease reinsert it");
+		// Wait until the card is removed, then call the function
+		do { swiWaitForVBlank(); } while (REG_SCFG_MC != 0x11);
 		WaitCard();
 	}
 	PrintMenu(gameid, gamename);
@@ -195,20 +196,21 @@ int main() {
 			consoleClear();
 			iprintf("The cartridge was removed!\nPlease insert a cartridge to\ncontinue!\n");
 			WaitCard();
-			while(!UpdateCardInfo(&nds,&gameid[0],&gamename[0])) {
+			while(!UpdateCardInfo(&nds,&gameid[0],&gamename[0], &card_type)) {
 				consoleClear();
-				iprintf("Cartige not read properly,\nplease reinsert it");
+				iprintf("Cartige not read properly!\nPlease reinsert it");
+				do { swiWaitForVBlank(); } while (REG_SCFG_MC != 0x11);
 				WaitCard();
 			}
 			PrintMenu(gameid, gamename);
 		}
 		scanKeys();
 		if(keysDown()&KEY_A) {
-			save();
+			save(card_type, gameid);
 			PrintMenu(gameid, gamename);
 		}
 		else if(keysDown()&KEY_B) {
-			restore();
+			restore(card_type, gameid);
 			PrintMenu(gameid, gamename);
 		}
 	}
