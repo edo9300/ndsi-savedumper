@@ -48,37 +48,39 @@ void save () {
 	return;
 }
 void restore () {
-	uint8* buffer;
-	uint8 size = auxspi_save_size_log_2(slot_1_type);
-	uint8 type = auxspi_save_type(slot_1_type);
-	if (type == 3) {
-		iprintf("The savefile in the cartige has to be cleared, press A to continue, B to cancel\n");
-		if(wait(true)==KEY_B)
-			return;
-		iprintf("Deleting the previous savefile\n");
-		auxspi_erase(slot_1_type);
-		iprintf("Savefile deleted\n");
-	}
-	u32 num_blocks = 0, shift = 0;
-	switch (type) {
-	case 1:
-		shift = 4; // 16 bytes
-		break;
-	case 2:
-		shift = 5; // 32 bytes
-		break;
-	case 3:
-		shift = 8; // 256 bytes
-		break;
-	default:
-		return;
-	}
-	u32 LEN = 1 << shift;
-	num_blocks = 1 << (size - shift);
 	FILE * pFile;
 	sprintf(txt, "saves/%s.sav", gameid);
 	pFile = fopen (txt,"rb");
-	if(pFile!=NULL){
+	if(pFile==NULL){
+		iprintf("Savefile not found!\n");
+	} else {
+		uint8* buffer;
+		uint8 size = auxspi_save_size_log_2(slot_1_type);
+		uint8 type = auxspi_save_type(slot_1_type);
+		if (type == 3) {
+			iprintf("The savefile in the cartige has to be cleared, press A to\ncontinue, B to cancel\n");
+			if(wait(true)==KEY_B)
+				return;
+			iprintf("Deleting the previous savefile\n");
+			auxspi_erase(slot_1_type);
+			iprintf("Savefile deleted\n");
+		}
+		u32 num_blocks = 0, shift = 0;
+		switch (type) {
+		case 1:
+			shift = 4; // 16 bytes
+			break;
+		case 2:
+			shift = 5; // 32 bytes
+			break;
+		case 3:
+			shift = 8; // 256 bytes
+			break;
+		default:
+			return;
+		}
+		u32 LEN = 1 << shift;
+		num_blocks = 1 << (size - shift);
 		iprintf("Savefile loaded, press A to\nwrite it in the cartige, B to\ncancel\n");
 		if(wait(true)==KEY_B){
 			fclose(pFile);
@@ -95,8 +97,6 @@ void restore () {
 		fclose(pFile);
 		free(buffer);
 		iprintf("Savefile successfully written!\n");
-	} else {
-		iprintf("Savefile not found!\n");
 	}
 	iprintf("Press A to continue\n");
 	wait();
