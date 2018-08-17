@@ -72,7 +72,7 @@ void restore (auxspi_extra card_type, char gameid[]) {
 		uint8 size = auxspi_save_size_log_2(card_type);
 		uint8 type = auxspi_save_type(card_type);
 		if (type == 3) {
-			iprintf("The savefile in the cartige has to be cleared, press A to\ncontinue, B to cancel\n");
+			iprintf("The savefile in the cartdige has to be cleared, press A to\ncontinue, B to cancel\n");
 			if(wait(true)==KEY_B)
 				return;
 			iprintf("Deleting the previous savefile\n");
@@ -95,7 +95,7 @@ void restore (auxspi_extra card_type, char gameid[]) {
 		}
 		u32 LEN = 1 << shift;
 		num_blocks = 1 << (size - shift);
-		iprintf("Savefile loaded, press A to\nwrite it in the cartige, B to\ncancel\n");
+		iprintf("Savefile loaded, press A to\nwrite it in the cartdige, B to\ncancel\n");
 		if(wait(true)==KEY_B){
 			fclose(pFile);
 			return;
@@ -131,12 +131,13 @@ void displayInit()
 }
 
 void WaitCard(){
-	do { swiWaitForVBlank(); } while (REG_SCFG_MC == 0x11);
-	disableSlot1();
-	for (int i = 0; i < 25; i++) { swiWaitForVBlank(); }
-	enableSlot1();
-	// Delay half a second for the DS card to stabilise
-	for (int i = 0; i < 30; i++) { swiWaitForVBlank(); }
+	if (REG_SCFG_MC == 0x11) {
+		do { swiWaitForVBlank(); }
+		while (REG_SCFG_MC == 0x11);
+		disableSlot1();
+		for (int i = 0; i < 25; i++) { swiWaitForVBlank(); }
+		enableSlot1();
+	}
 }
 
 bool UpdateCardInfo(sNDSHeader* nds,char* gameid,char* gamename, auxspi_extra* card_type){
@@ -162,7 +163,7 @@ void PrintMenu(char gameid[],char gamename[]){
 	iprintf("\n");
 	iprintf(gamename);
 	iprintf("\n");
-	iprintf("Press A to dump the save from\nyour cartige, press B to restore");
+	iprintf("Press A to dump the save from\nyour cartdige, press B to restore");
 	iprintf("\n");
 }
 
@@ -182,7 +183,7 @@ int main() {
 	consoleClear();
 	sysSetCardOwner (BUS_OWNER_ARM9);
 	if (REG_SCFG_MC == 0x11) {
-		iprintf("No cartridge detected!\nPlease insert a cartridge to\ncontinue!\n");
+		iprintf("No cartdige detected!\nPlease insert a cartdige to\ncontinue!\n");
 		WaitCard();
 	}
 	if(REG_SCFG_MC == 0x10) { 
@@ -198,7 +199,7 @@ int main() {
 	
 	while(!UpdateCardInfo(&nds,&gameid[0],&gamename[0], &card_type)) {
 		consoleClear();
-		iprintf("Cartige not read properly!\nPlease reinsert it");
+		iprintf("Cartdige not read properly!\nPlease reinsert it");
 		// Wait until the card is removed, then call the function
 		do { swiWaitForVBlank(); } while (REG_SCFG_MC != 0x11);
 		WaitCard();
@@ -208,11 +209,11 @@ int main() {
 		swiWaitForVBlank();
 		if(REG_SCFG_MC == 0x11){
 			consoleClear();
-			iprintf("The cartridge was removed!\nPlease insert a cartridge to\ncontinue!\n");
+			iprintf("The cartdige was removed!\nPlease insert a cartdige to\ncontinue!\n");
 			WaitCard();
 			while(!UpdateCardInfo(&nds,&gameid[0],&gamename[0], &card_type)) {
 				consoleClear();
-				iprintf("Cartige not read properly!\nPlease reinsert it");
+				iprintf("Cartdige not read properly!\nPlease reinsert it");
 				do { swiWaitForVBlank(); } while (REG_SCFG_MC != 0x11);
 				WaitCard();
 			}
