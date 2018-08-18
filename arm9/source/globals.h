@@ -29,8 +29,7 @@
 #include <nds.h>
 #include "auxspi.h"
 
-extern u8 *data;
-extern u32 size_buf;
+extern uint8 data[0x8000];
 
 extern int ir_delay;
 

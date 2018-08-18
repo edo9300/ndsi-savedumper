@@ -25,8 +25,7 @@
 
 #include "globals.h"
 
-u8 *data;
-u32 size_buf;
+uint8 data[0x8000]  = {0};
 
 int ir_delay = 1200;
 
