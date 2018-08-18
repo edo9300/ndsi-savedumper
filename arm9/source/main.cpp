@@ -181,6 +181,14 @@ int main() {
 	iprintf("Savegame manager by edo9300");
 	consoleSelect(&lowerScreen);
 	consoleClear();
+	
+	if(!fatInitDefault()){
+		iprintf("SD init failed");
+		while(1) swiWaitForVBlank();
+	}
+	
+	mkdir("saves", 0777);
+	
 	sysSetCardOwner (BUS_OWNER_ARM9);
 	if (REG_SCFG_MC == 0x11) {
 		iprintf("No cartdige detected!\nPlease insert a cartdige to\ncontinue!\n");
@@ -191,12 +199,7 @@ int main() {
 		for (int i = 0; i < 25; i++) { swiWaitForVBlank(); }
 		enableSlot1();
 	}
-	
-	if(!fatInitDefault()){
-		iprintf("SD init failed");
-		while(1) swiWaitForVBlank();
-	}
-	
+		
 	while(!UpdateCardInfo(&nds,&gameid[0],&gamename[0], &card_type)) {
 		consoleClear();
 		iprintf("Cartdige not read properly!\nPlease reinsert it");
