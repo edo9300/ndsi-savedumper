@@ -134,9 +134,15 @@ void restore (auxspi_extra card_type, char gameid[]) {
 				fclose(pFile);
 				return;
 			}
-			buffer = (uint8 *)malloc(size);
-			fread(buffer, 1, size, pFile);
-			cardWriteEeprom(0, buffer, size, type);
+			int blocks=size/32;
+			int written = 0;
+			buffer = (uint8 *)malloc(blocks);
+			for (unsigned int i = 0; i < 32; i++) {
+				iprintf("#");
+				fread(buffer, 1, blocks, pFile);
+				cardWriteEeprom(written, buffer, blocks, type);
+				written+=blocks;
+			}
 		}
 		fclose(pFile);
 		free(buffer);
