@@ -1,4 +1,5 @@
 #include <nds.h>
+#include<dirent.h>
 
 #include <cstdio>
 #include <fat.h>
