@@ -163,7 +163,7 @@ void PrintMenu(char gameid[],char gamename[]){
 	iprintf("\n");
 	iprintf(gamename);
 	iprintf("\n");
-	iprintf("Press A to dump the save from\nyour cartdige, press B to restore");
+	iprintf("Press A to dump the save from\nyour cartdige, press B to\nrestore it.");
 	iprintf("\n");
 }
 
