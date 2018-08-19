@@ -44,8 +44,8 @@ void save (auxspi_extra card_type, char gameid[]) {
 	while(1) {
 		swiWaitForVBlank();
 		scanKeys();
-		if(keysDown()&KEY_A) {sprintf(txt, "saves/%s.sav", gameid); break;}
-		if(keysDown()&KEY_X) {sprintf(txt, "saves/save.sav"); break;}
+		if(keysDown()&KEY_A) {sprintf(txt, "%s.sav", gameid); break;}
+		if(keysDown()&KEY_X) {sprintf(txt, "save.sav"); break;}
 	}
 	pFile = fopen (txt,"w+");
 	if(pFile!=NULL){
@@ -87,8 +87,8 @@ void restore (auxspi_extra card_type, char gameid[]) {
 	while(1) {
 		swiWaitForVBlank();
 		scanKeys();
-		if(keysDown()&KEY_A) {sprintf(txt, "saves/%s.sav", gameid); break;}
-		if(keysDown()&KEY_X) {sprintf(txt, "saves/save.sav"); break;}
+		if(keysDown()&KEY_A) {sprintf(txt, "%s.sav", gameid); break;}
+		if(keysDown()&KEY_X) {sprintf(txt, "save.sav"); break;}
 	}
 	pFile = fopen (txt,"rb");
 	if(pFile==NULL){
@@ -240,7 +240,8 @@ int main() {
 		while(1) swiWaitForVBlank();
 	}
 	
-	mkdir("saves", 0777);
+	mkdir("sd:/saves", 0777);
+	chdir("sd:/saves");
 	
 	sysSetCardOwner (BUS_OWNER_ARM9);
 	if (REG_SCFG_MC == 0x11) {
@@ -287,4 +288,3 @@ int main() {
 	}
 	return 0;
 }
-
