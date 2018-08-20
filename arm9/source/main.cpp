@@ -23,9 +23,13 @@
 #include <malloc.h>
 #include <list>
 #include <ctype.h>
+#include <string>
+#include <vector>
 
 #include "auxspi.h"
 #include "globals.h"
+
+#define DISPLAY_COLUMNS 32
 
 int wait(bool cancel=false){
 	while(1) {
@@ -37,20 +41,73 @@ int wait(bool cancel=false){
 	return 0;
 }
 
-void save (auxspi_extra card_type, char gameid[]) {
-	consoleClear();
-	FILE * pFile;
-	iprintf("Press A to save the savefile as \"%s.sav\".\nPress X to save the savefile as\n\"save.sav\" (use this if garbage\ntext is displayed)\n", gameid);
+void NameUpdate(char gameid[]){
 	while(1) {
 		swiWaitForVBlank();
 		scanKeys();
-		if(keysDown()&KEY_A) {sprintf(txt, "%s.sav", gameid); break;}
-		if(keysDown()&KEY_X) {sprintf(txt, "save.sav"); break;}
+		if(keysDown()&KEY_A) {sprintf(txt, "%s.sav", gameid); return;}
+		if(keysDown()&KEY_X) {sprintf(txt, "save.sav"); return;}
 	}
+}
+
+PrintConsole upperScreen;
+PrintConsole lowerScreen;
+
+void WriteMessage(std::string text, bool clear = false, bool topscreen = false){
+	consoleSelect(topscreen ? &upperScreen : &lowerScreen);
+	if (clear)
+		consoleClear();
+	if(text.size()<=DISPLAY_COLUMNS){
+		iprintf(text.c_str());
+		if(text.size()!=DISPLAY_COLUMNS)
+			iprintf("\n");
+		return;
+	}
+	std::vector<std::string> words;
+	std::string temp;
+	for (int i = 0; i < (int)text.size(); i++){
+		if(text[i] == L' '){
+			words.push_back(temp);
+			temp.clear();
+		} else
+			temp+=text[i];
+	}
+	if(temp.size())
+		words.push_back(temp);
+	std::vector<std::string> rows;
+	int column = 0;
+	for (auto word : words){
+		int chkval=column+(int)word.size();
+		if(column)
+			chkval++;
+		if(chkval<=DISPLAY_COLUMNS){
+			if(column){
+				iprintf(" ");
+				column++;
+			}
+			iprintf(word.c_str());
+			column+=(int)word.size();
+		} else {
+			if(column!=DISPLAY_COLUMNS)
+				iprintf("\n");
+			column=(int)word.size();
+			iprintf(word.c_str());
+		}
+	}
+	if(column!=DISPLAY_COLUMNS)
+		iprintf("\n");
+}
+
+void save (auxspi_extra card_type, char gameid[]) {
+	sprintf(txt, "Press A to save the savefile as \"%s.sav\".", gameid);
+	WriteMessage(txt,true);
+	WriteMessage("Press X to save the savefile as \"save.sav\" (use this if garbage text is displayed)");
+	NameUpdate(gameid);
+	FILE * pFile;
 	pFile = fopen (txt,"w+");
 	if(pFile!=NULL){
 		uint8* buffer;
-		iprintf("Creating the savefile\n");
+		WriteMessage("Creating the savefile");
 		if(card_type){
 			int size = auxspi_save_size_log_2(card_type);
 			int size_blocks = 1 << std::max(0, (int8(size) - 18));
@@ -72,39 +129,35 @@ void save (auxspi_extra card_type, char gameid[]) {
 		}
 		fclose(pFile);
 		free(buffer);
-		iprintf("Savefile created\n");
+		WriteMessage("Savefile created");
 	} else {
-		iprintf("Couldn't create savefile\n");
+		WriteMessage("Couldn't create savefile");
 	}
-	iprintf("Press A to continue\n");
+	WriteMessage("Press A to continue");
 	wait();
 	return;
 }
 void restore (auxspi_extra card_type, char gameid[]) {
-	consoleClear();
+	sprintf(txt, "Press A to load %s.sav.", gameid);
+	WriteMessage(txt,true);
+	WriteMessage("Press X to load \"save.sav\" (use this if garbage text is displayed)");
+	NameUpdate(gameid);
 	FILE * pFile;
-	iprintf("Press A to load %s.sav.\nPress X to load \"save.sav\" (use this if garbage text is\ndisplayed)\n", gameid);
-	while(1) {
-		swiWaitForVBlank();
-		scanKeys();
-		if(keysDown()&KEY_A) {sprintf(txt, "%s.sav", gameid); break;}
-		if(keysDown()&KEY_X) {sprintf(txt, "save.sav"); break;}
-	}
 	pFile = fopen (txt,"rb");
 	if(pFile==NULL){
-		iprintf("Savefile not found!\n");
+		WriteMessage("Savefile not found!");
 	} else {
 		uint8* buffer;
 		if(card_type){
 			uint8 size = auxspi_save_size_log_2(card_type);
 			int type = auxspi_save_type(card_type);
 			if (type == 3) {
-				iprintf("The savefile in the cartdige has to be cleared, press A to\ncontinue, B to cancel\n");
+				WriteMessage("The savefile in the cartdige has to be cleared, press A to continue, B to cancel",true);
 				if(wait(true)==KEY_B)
 					return;
-				iprintf("Deleting the previous savefile\n");
+				WriteMessage("Deleting the previous savefile");
 				auxspi_erase(card_type);
-				iprintf("Savefile deleted\n");
+				WriteMessage("Savefile deleted");
 			}
 			u32 num_blocks = 0, shift = 0;
 			switch (type) {
@@ -122,7 +175,7 @@ void restore (auxspi_extra card_type, char gameid[]) {
 			}
 			u32 LEN = 1 << shift;
 			num_blocks = 1 << (size - shift);
-			iprintf("Savefile loaded, press A to\nwrite it in the cartdige, B to\ncancel\n");
+			WriteMessage("Savefile loaded, press A to write it in the cartdige, B to cancel");
 			if(wait(true)==KEY_B){
 				fclose(pFile);
 				return;
@@ -139,14 +192,14 @@ void restore (auxspi_extra card_type, char gameid[]) {
 			int type = cardEepromGetType();
 			int size = cardEepromGetSize();
 			if (type == 3){
-				iprintf("The savefile in the cartdige has to be cleared, press A to\ncontinue, B to cancel\n");
+				WriteMessage("The savefile in the cartdige has to be cleared, press A to continue, B to cancel",true);
 				if(wait(true)==KEY_B)
 					return;
-				iprintf("Deleting the previous savefile\n");
+				WriteMessage("Deleting the previous savefile");
 				cardEepromChipErase();
-				iprintf("Savefile deleted\n");				
+				WriteMessage("Savefile deleted");				
 			}
-			iprintf("Savefile loaded, press A to\nwrite it in the cartdige, B to\ncancel\n");
+			WriteMessage("Savefile loaded, press A to write it in the cartdige, B to cancel");
 			if(wait(true)==KEY_B){
 				fclose(pFile);
 				return;
@@ -163,14 +216,12 @@ void restore (auxspi_extra card_type, char gameid[]) {
 		}
 		fclose(pFile);
 		free(buffer);
-		iprintf("Savefile successfully written!\n");
+		WriteMessage("Savefile successfully written!");
 	}
-	iprintf("Press A to continue\n");
+	WriteMessage("Press A to continue");
 	wait();
 	return;
 }
-PrintConsole upperScreen;
-PrintConsole lowerScreen;
 
 void displayInit()
 {
@@ -199,8 +250,6 @@ bool UpdateCardInfo(sNDSHeader* nds,char* gameid,char* gamename, auxspi_extra* c
 	int type = cardEepromGetType();
 	int size = cardEepromGetSize();
 	if(type==999 || size < 1){
-		iprintf("Type %d\n",type);
-		iprintf("Size %d\n",size);
 		return false;
 	}
 	memcpy(gameid, nds->gameCode, 4);
@@ -211,13 +260,9 @@ bool UpdateCardInfo(sNDSHeader* nds,char* gameid,char* gamename, auxspi_extra* c
 }
 
 void PrintMenu(char gameid[],char gamename[]){
-	consoleClear();
-	iprintf(gameid);
-	iprintf("\n");
-	iprintf(gamename);
-	iprintf("\n");
-	iprintf("Press A to dump the save from\nyour cartdige, press B to\nrestore it.");
-	iprintf("\n");
+	WriteMessage(gameid,true);
+	WriteMessage(gamename);
+	WriteMessage("Press A to dump the save from your cartdige, press B to restore it.");
 }
 
 //---------------------------------------------------------------------------------
@@ -229,14 +274,10 @@ int main() {
 	nds.gameTitle[0] = 0;
 	char gamename[13];
 	char gameid[5];
-	consoleSelect(&upperScreen);
-	consoleClear();
-	iprintf("Savegame manager by edo9300");
-	consoleSelect(&lowerScreen);
-	consoleClear();
+	WriteMessage("Savegame manager by edo9300",true,true);
 	
 	if(!fatInitDefault()){
-		iprintf("SD init failed");
+		WriteMessage("SD init failed");
 		while(1) swiWaitForVBlank();
 	}
 	
@@ -245,7 +286,8 @@ int main() {
 	
 	sysSetCardOwner (BUS_OWNER_ARM9);
 	if (REG_SCFG_MC == 0x11) {
-		iprintf("No cartdige detected!\nPlease insert a cartdige to\ncontinue!\n");
+		WriteMessage("No cartdige detected!");
+		WriteMessage("Please insert a cartdige to continue!");
 		WaitCard();
 	}
 	if(REG_SCFG_MC == 0x10) { 
@@ -255,8 +297,8 @@ int main() {
 	}
 	
 	while(!UpdateCardInfo(&nds,&gameid[0],&gamename[0], &card_type)) {
-		consoleClear();
-		iprintf("Cartdige not read properly!\nPlease reinsert it");
+		WriteMessage("Cartdige not read properly!",true);
+		WriteMessage("Please reinsert it");
 		// Wait until the card is removed, then call the function
 		do { swiWaitForVBlank(); } while (REG_SCFG_MC != 0x11);
 		WaitCard();
@@ -265,12 +307,12 @@ int main() {
 	while(1) {
 		swiWaitForVBlank();
 		if(REG_SCFG_MC == 0x11){
-			consoleClear();
-			iprintf("The cartdige was removed!\nPlease insert a cartdige to\ncontinue!\n");
+			WriteMessage("The cartdige was removed!",true);
+			WriteMessage("Please insert a cartdige to continue!");
 			WaitCard();
 			while(!UpdateCardInfo(&nds,&gameid[0],&gamename[0], &card_type)) {
-				consoleClear();
-				iprintf("Cartdige not read properly!\nPlease reinsert it");
+				WriteMessage("Cartdige not read properly!",true);
+				WriteMessage("Please reinsert it");
 				do { swiWaitForVBlank(); } while (REG_SCFG_MC != 0x11);
 				WaitCard();
 			}
