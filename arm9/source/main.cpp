@@ -16,7 +16,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>
  */
 #include <nds.h>
-#include<dirent.h>
+#include <dirent.h>
 
 #include <cstdio>
 #include <fat.h>
@@ -274,7 +274,7 @@ int main() {
 	nds.gameTitle[0] = 0;
 	char gamename[13];
 	char gameid[5];
-	WriteMessage("Savegame manager by edo9300",true,true);
+	WriteMessage("Savegame manager by edo9300 v1.0",true,true);
 	
 	if(!fatInitDefault()){
 		WriteMessage("SD init failed");
