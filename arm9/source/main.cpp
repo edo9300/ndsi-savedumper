@@ -59,16 +59,16 @@ void WriteMessage(std::string text, bool clear = false, bool topscreen = false){
 		consoleClear();
 	if(text.size()<=DISPLAY_COLUMNS){
 		iprintf(text.c_str());
-		if(text.size()!=DISPLAY_COLUMNS)
-			iprintf("\n");
 		return;
 	}
 	std::vector<std::string> words;
 	std::string temp;
 	for (int i = 0; i < (int)text.size(); i++){
-		if(text[i] == L' '){
+		if(text[i] == L' ' || text[i] == L'\n'){
 			words.push_back(temp);
 			temp.clear();
+			if(text[i] == L'\n')
+				words.push_back("\n");
 		} else
 			temp+=text[i];
 	}
@@ -77,6 +77,12 @@ void WriteMessage(std::string text, bool clear = false, bool topscreen = false){
 	std::vector<std::string> rows;
 	int column = 0;
 	for (auto word : words){
+		if(word.size()==1 && word[0]==L'\n'){
+			if(column!=DISPLAY_COLUMNS)
+				iprintf("\n");
+			column = 0;
+			return;
+		}
 		int chkval=column+(int)word.size();
 		if(column)
 			chkval++;
@@ -94,20 +100,18 @@ void WriteMessage(std::string text, bool clear = false, bool topscreen = false){
 			iprintf(word.c_str());
 		}
 	}
-	if(column!=DISPLAY_COLUMNS)
-		iprintf("\n");
 }
 
 void save (auxspi_extra card_type, char gameid[]) {
-	sprintf(txt, "Press A to save the savefile as \"%s.sav\".", gameid);
+	sprintf(txt, "Press A to save the savefile as \"%s.sav\".\n", gameid);
 	WriteMessage(txt,true);
-	WriteMessage("Press X to save the savefile as \"save.sav\" (use this if garbage text is displayed)");
+	WriteMessage("Press X to save the savefile as \"save.sav\" (use this if garbage text is displayed)\n");
 	NameUpdate(gameid);
 	FILE * pFile;
 	pFile = fopen (txt,"w+");
 	if(pFile!=NULL){
 		uint8* buffer;
-		WriteMessage("Creating the savefile");
+		WriteMessage("Creating the savefile\n");
 		if(card_type){
 			int size = auxspi_save_size_log_2(card_type);
 			int size_blocks = 1 << std::max(0, (int8(size) - 18));
@@ -129,35 +133,35 @@ void save (auxspi_extra card_type, char gameid[]) {
 		}
 		fclose(pFile);
 		free(buffer);
-		WriteMessage("Savefile created");
+		WriteMessage("Savefile created\n");
 	} else {
-		WriteMessage("Couldn't create savefile");
+		WriteMessage("Couldn't create savefile\n");
 	}
-	WriteMessage("Press A to continue");
+	WriteMessage("Press A to continue\n");
 	wait();
 	return;
 }
 void restore (auxspi_extra card_type, char gameid[]) {
-	sprintf(txt, "Press A to load %s.sav.", gameid);
+	sprintf(txt, "Press A to load %s.sav.\n", gameid);
 	WriteMessage(txt,true);
-	WriteMessage("Press X to load \"save.sav\" (use this if garbage text is displayed)");
+	WriteMessage("Press X to load \"save.sav\" (use this if garbage text is displayed)\n");
 	NameUpdate(gameid);
 	FILE * pFile;
 	pFile = fopen (txt,"rb");
 	if(pFile==NULL){
-		WriteMessage("Savefile not found!");
+		WriteMessage("Savefile not found!\n");
 	} else {
 		uint8* buffer;
 		if(card_type){
 			uint8 size = auxspi_save_size_log_2(card_type);
 			int type = auxspi_save_type(card_type);
 			if (type == 3) {
-				WriteMessage("The savefile in the cartdige has to be cleared, press A to continue, B to cancel",true);
+				WriteMessage("The savefile in the cartdige has to be cleared, press A to continue, B to cancel\n",true);
 				if(wait(true)==KEY_B)
 					return;
-				WriteMessage("Deleting the previous savefile");
+				WriteMessage("Deleting the previous savefile\n");
 				auxspi_erase(card_type);
-				WriteMessage("Savefile deleted");
+				WriteMessage("Savefile deleted\n");
 			}
 			u32 num_blocks = 0, shift = 0;
 			switch (type) {
@@ -175,7 +179,7 @@ void restore (auxspi_extra card_type, char gameid[]) {
 			}
 			u32 LEN = 1 << shift;
 			num_blocks = 1 << (size - shift);
-			WriteMessage("Savefile loaded, press A to write it in the cartdige, B to cancel");
+			WriteMessage("Savefile loaded, press A to write it in the cartdige, B to cancel\n");
 			if(wait(true)==KEY_B){
 				fclose(pFile);
 				return;
@@ -192,14 +196,14 @@ void restore (auxspi_extra card_type, char gameid[]) {
 			int type = cardEepromGetType();
 			int size = cardEepromGetSize();
 			if (type == 3){
-				WriteMessage("The savefile in the cartdige has to be cleared, press A to continue, B to cancel",true);
+				WriteMessage("The savefile in the cartdige has to be cleared, press A to continue, B to cancel\n",true);
 				if(wait(true)==KEY_B)
 					return;
-				WriteMessage("Deleting the previous savefile");
+				WriteMessage("Deleting the previous savefile\n");
 				cardEepromChipErase();
-				WriteMessage("Savefile deleted");				
+				WriteMessage("Savefile deleted\n");				
 			}
-			WriteMessage("Savefile loaded, press A to write it in the cartdige, B to cancel");
+			WriteMessage("Savefile loaded, press A to write it in the cartdige, B to cancel\n");
 			if(wait(true)==KEY_B){
 				fclose(pFile);
 				return;
@@ -216,9 +220,9 @@ void restore (auxspi_extra card_type, char gameid[]) {
 		}
 		fclose(pFile);
 		free(buffer);
-		WriteMessage("Savefile successfully written!");
+		WriteMessage("Savefile successfully written!\n");
 	}
-	WriteMessage("Press A to continue");
+	WriteMessage("Press A to continue\n");
 	wait();
 	return;
 }
@@ -259,10 +263,16 @@ bool UpdateCardInfo(sNDSHeader* nds,char* gameid,char* gamename, auxspi_extra* c
 	return true;
 }
 
-void PrintMenu(char gameid[],char gamename[]){
-	WriteMessage(gameid,true);
-	WriteMessage(gamename);
-	WriteMessage("Press A to dump the save from your cartdige, press B to restore it.");
+void ShowGameInfo(const char gameid[],const char gamename[]){
+	consoleSelect(&upperScreen);
+	consoleSetWindow(&upperScreen, 0, 3, DISPLAY_COLUMNS, 23);
+	consoleClear();
+	iprintf("Game id: %s\nName:    %s",gameid,gamename);
+}
+
+void PrintMenu(const char gameid[],const char gamename[]){
+	ShowGameInfo(gameid, gamename);
+	WriteMessage("Press A to dump the save from your cartdige, press B to restore it.\n",true);
 }
 
 //---------------------------------------------------------------------------------
@@ -274,10 +284,14 @@ int main() {
 	nds.gameTitle[0] = 0;
 	char gamename[13];
 	char gameid[5];
-	WriteMessage("Savegame manager by edo9300 v1.0",true,true);
+	consoleSelect(&upperScreen);
+	consoleSetWindow(&upperScreen, 0, 0, DISPLAY_COLUMNS, 3);
+	iprintf("Savegame manager by edo9300 v1.0");
+	ShowGameInfo("????", "????");
+	WriteMessage("Loading game\n",true);
 	
 	if(!fatInitDefault()){
-		WriteMessage("SD init failed");
+		WriteMessage("SD init failed\n",true);
 		while(1) swiWaitForVBlank();
 	}
 	
@@ -286,8 +300,8 @@ int main() {
 	
 	sysSetCardOwner (BUS_OWNER_ARM9);
 	if (REG_SCFG_MC == 0x11) {
-		WriteMessage("No cartdige detected!");
-		WriteMessage("Please insert a cartdige to continue!");
+		WriteMessage("No cartdige detected!\n",true);
+		WriteMessage("Please insert a cartdige to continue!\n");
 		WaitCard();
 	}
 	if(REG_SCFG_MC == 0x10) { 
@@ -297,8 +311,8 @@ int main() {
 	}
 	
 	while(!UpdateCardInfo(&nds,&gameid[0],&gamename[0], &card_type)) {
-		WriteMessage("Cartdige not read properly!",true);
-		WriteMessage("Please reinsert it");
+		WriteMessage("Cartdige not read properly!\n",true);
+		WriteMessage("Please reinsert it\n");
 		// Wait until the card is removed, then call the function
 		do { swiWaitForVBlank(); } while (REG_SCFG_MC != 0x11);
 		WaitCard();
@@ -307,12 +321,13 @@ int main() {
 	while(1) {
 		swiWaitForVBlank();
 		if(REG_SCFG_MC == 0x11){
-			WriteMessage("The cartdige was removed!",true);
-			WriteMessage("Please insert a cartdige to continue!");
+			ShowGameInfo("????", "????");
+			WriteMessage("The cartdige was removed!\n",true);
+			WriteMessage("Please insert a cartdige to continue!\n");
 			WaitCard();
 			while(!UpdateCardInfo(&nds,&gameid[0],&gamename[0], &card_type)) {
-				WriteMessage("Cartdige not read properly!",true);
-				WriteMessage("Please reinsert it");
+				WriteMessage("Cartdige not read properly!\n",true);
+				WriteMessage("Please reinsert it\n");
 				do { swiWaitForVBlank(); } while (REG_SCFG_MC != 0x11);
 				WaitCard();
 			}
