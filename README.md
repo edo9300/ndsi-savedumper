@@ -9,4 +9,4 @@ Homebrew to dump and inject savefiles from original game cards on dsi
 All the savefiles will be saved and loaded from the folred "saves" placed in the root of your sd.
 
 # Credits
-- Pokedoc for his project [nds-savegame-manager](https://code.google.com/archive/p/savegame-manager/) in which he rewrote the library used to read saves compatible with games with infra red sensors
+- Pokedoc for his project [nds-savegame-manager](https://code.google.com/archive/p/savegame-manager/) in which he rewrote the library used to read saves compatible with games with infrared sensors
