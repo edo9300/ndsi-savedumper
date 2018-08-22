@@ -357,7 +357,7 @@ int main() {
 	char gameid[5];
 	consoleSelect(&upperScreen);
 	consoleSetWindow(&upperScreen, 0, 0, DISPLAY_COLUMNS, 3);
-	iprintf("Savegame manager by edo9300 v1.0");
+	iprintf("Savegame manager by edo9300 v1.1");
 	keyboardDemoInit();
 	
 	if(!fatInitDefault()){
