@@ -17,8 +17,6 @@
 */
 
 #include <nds.h>
-#include <nds/arm7/input.h>
-#include <nds/system.h>
 #include <maxmod7.h>
 
 volatile bool exitflag = false;
@@ -41,6 +39,7 @@ int main(void) {
 
 	irqInit();
 	fifoInit();
+	touchInit();
 
 	// Start the RTC tracking IRQ
 	initClockIRQ();
@@ -67,6 +66,7 @@ int main(void) {
 		// fifocheck();
 		swiWaitForVBlank();
 	}
+	return 0;
 }
 
 

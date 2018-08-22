@@ -29,6 +29,7 @@
 
 #include "auxspi.h"
 #include "globals.h"
+#include "file_browse.h"
 
 #define DISPLAY_COLUMNS 32
 
@@ -40,15 +41,6 @@ int wait(bool cancel=false){
 		if(cancel && (keysDown()&KEY_B)) return KEY_B;
 	}
 	return 0;
-}
-
-void NameUpdate(char gameid[]){
-	while(1) {
-		swiWaitForVBlank();
-		scanKeys();
-		if(keysDown()&KEY_A) {sprintf(txt, "%s.sav", gameid); return;}
-		if(keysDown()&KEY_X) {sprintf(txt, "save.sav"); return;}
-	}
 }
 
 PrintConsole upperScreen;
@@ -103,15 +95,73 @@ void WriteMessage(std::string text, bool clear = false, bool topscreen = false){
 	}
 }
 
+std::string UpdateKeyboard(){
+	keyboardShow();
+	std::string res;
+	while(1) {
+		
+		int key = keyboardUpdate();
+
+		if(key > 0){
+			if(key==DVK_ENTER){
+				break;
+			} else if(key==DVK_BACKSPACE){
+				if(res.size()){
+					iprintf("%c", key);
+					res.pop_back();
+				}
+			} else if (key != DVK_TAB){
+				iprintf("%c", key);
+				res+=key;
+			}
+		}
+
+		swiWaitForVBlank();
+		scanKeys();
+
+		if(keysDown() & KEY_X) 
+			break;
+	}
+	keyboardHide();
+	iprintf("\n");
+	if(res.size())
+		return res;
+	else
+		return "save";
+}
+
+void NameUpdate(char gameid[],bool dumping){
+	while(1) {
+		swiWaitForVBlank();
+		scanKeys();
+		if(keysDown()&KEY_A) {sprintf(txt, "%s.sav", gameid); return;}
+		if(keysDown()&KEY_X) {
+			if(dumping){
+				WriteMessage("Write the name for the save\n",true);
+				WriteMessage("If the keyboard isn't working, press X to save the savefile as \"save.sav\"\n");
+				std::string filename = UpdateKeyboard();
+				sprintf(txt, "%s.sav", filename.c_str());
+			} else {
+				std::string filename;
+				std::vector<std::string> extensionList;
+				extensionList.push_back(".sav");
+				filename = browseForFile(extensionList);
+				sprintf(txt, "%s", filename.c_str());
+			}
+			return;
+		}
+	}
+}
+
 void save (auxspi_extra card_type, char gameid[]) {
 	sprintf(txt, "Press A to save the savefile as \"%s.sav\".\n", gameid);
 	WriteMessage(txt,true);
-	WriteMessage("Press X to save the savefile as \"save.sav\" (use this if garbage text is displayed)\n");
-	NameUpdate(gameid);
+	WriteMessage("Press X to write the name for the savefile (use this also if garbage text is displayed)\n");
+	NameUpdate(gameid, true);
 	std::ofstream output(txt,std::ofstream::binary);
 	if(output.is_open()){
 		uint8* buffer;
-		WriteMessage("Creating the savefile\n");
+		WriteMessage("Creating the savefile\n", true);
 		if(card_type){
 			int size = auxspi_save_size_log_2(card_type);
 			int size_blocks = 1 << std::max(0, (int8(size) - 18));
@@ -144,8 +194,8 @@ void save (auxspi_extra card_type, char gameid[]) {
 void restore (auxspi_extra card_type, char gameid[]) {
 	sprintf(txt, "Press A to load %s.sav.\n", gameid);
 	WriteMessage(txt,true);
-	WriteMessage("Press X to load \"save.sav\" (use this if garbage text is displayed)\n");
-	NameUpdate(gameid);
+	WriteMessage("Press X to manually select the file to load (use this also if garbage text is displayed)\n");
+	NameUpdate(gameid, false);
 	std::ifstream input(txt,std::ifstream::binary);
 	if(input.is_open()){
 		uint8* buffer;
@@ -252,13 +302,11 @@ void restore (auxspi_extra card_type, char gameid[]) {
 
 void displayInit()
 {
+
+	lowerScreen=*consoleDemoInit();
 	videoSetMode(MODE_0_2D);
 	vramSetBankA(VRAM_A_MAIN_BG);
 	consoleInit(&upperScreen, 3,BgType_Text4bpp, BgSize_T_256x256, 31, 0, true, true);
-
-	videoSetModeSub(MODE_0_2D);
-	vramSetBankC(VRAM_C_SUB_BG);
-	consoleInit(&lowerScreen, 3,BgType_Text4bpp, BgSize_T_256x256, 31, 0, false, true);
 }
 
 void WaitCard(){
@@ -310,13 +358,15 @@ int main() {
 	consoleSelect(&upperScreen);
 	consoleSetWindow(&upperScreen, 0, 0, DISPLAY_COLUMNS, 3);
 	iprintf("Savegame manager by edo9300 v1.0");
-	ShowGameInfo("????", "????");
-	WriteMessage("Loading game\n",true);
+	keyboardDemoInit();
 	
 	if(!fatInitDefault()){
 		WriteMessage("SD init failed\n",true);
 		while(1) swiWaitForVBlank();
 	}
+
+	ShowGameInfo("????", "????");
+	WriteMessage("Loading game\n",true);
 	
 	mkdir("sd:/saves", 0777);
 	chdir("sd:/saves");
