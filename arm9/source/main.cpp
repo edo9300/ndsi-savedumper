@@ -25,6 +25,7 @@
 #include <ctype.h>
 #include <string>
 #include <vector>
+#include <fstream>
 
 #include "auxspi.h"
 #include "globals.h"
@@ -107,9 +108,8 @@ void save (auxspi_extra card_type, char gameid[]) {
 	WriteMessage(txt,true);
 	WriteMessage("Press X to save the savefile as \"save.sav\" (use this if garbage text is displayed)\n");
 	NameUpdate(gameid);
-	FILE * pFile;
-	pFile = fopen (txt,"w+");
-	if(pFile!=NULL){
+	std::ofstream output(txt,std::ofstream::binary);
+	if(output.is_open()){
 		uint8* buffer;
 		WriteMessage("Creating the savefile\n");
 		if(card_type){
@@ -123,20 +123,20 @@ void save (auxspi_extra card_type, char gameid[]) {
 			u32 LEN = std::min(1 << size, 1 << 16);
 			buffer = (u8 *)malloc(LEN*size_blocks);
 			auxspi_read_data(0, buffer, LEN*size_blocks, type, card_type);
-			fwrite(buffer, 1, LEN*size_blocks, pFile);
+			output.write((char*)buffer, LEN*size_blocks);
 		} else {
 			int type = cardEepromGetType();
 			int size = cardEepromGetSize();
 			buffer = (u8 *)malloc(size);
 			cardReadEeprom(0, buffer, size, type);
-			fwrite(buffer, 1, size, pFile);
+			output.write((char*)buffer, size);
 		}
-		fclose(pFile);
 		free(buffer);
 		WriteMessage("Savefile created\n");
 	} else {
 		WriteMessage("Couldn't create savefile\n");
 	}
+	output.close();
 	WriteMessage("Press A to continue\n");
 	wait();
 	return;
@@ -146,23 +146,12 @@ void restore (auxspi_extra card_type, char gameid[]) {
 	WriteMessage(txt,true);
 	WriteMessage("Press X to load \"save.sav\" (use this if garbage text is displayed)\n");
 	NameUpdate(gameid);
-	FILE * pFile;
-	pFile = fopen (txt,"rb");
-	if(pFile==NULL){
-		WriteMessage("Savefile not found!\n");
-	} else {
+	std::ifstream input(txt,std::ifstream::binary);
+	if(input.is_open()){
 		uint8* buffer;
 		if(card_type){
 			uint8 size = auxspi_save_size_log_2(card_type);
 			int type = auxspi_save_type(card_type);
-			if (type == 3) {
-				WriteMessage("The savefile in the cartdige has to be cleared, press A to continue, B to cancel\n",true);
-				if(wait(true)==KEY_B)
-					return;
-				WriteMessage("Deleting the previous savefile\n");
-				auxspi_erase(card_type);
-				WriteMessage("Savefile deleted\n");
-			}
 			u32 num_blocks = 0, shift = 0;
 			switch (type) {
 			case 1:
@@ -179,9 +168,29 @@ void restore (auxspi_extra card_type, char gameid[]) {
 			}
 			u32 LEN = 1 << shift;
 			num_blocks = 1 << (size - shift);
-			WriteMessage("Savefile loaded, press A to write it in the cartdige, B to cancel\n");
+			input.seekg (0, input.end);
+			unsigned int length = input.tellg();
+			input.seekg (0, input.beg);
+			if (length!= (LEN*num_blocks)){
+				WriteMessage("The size of the loaded file doesn't match the size of the save for the cartdige!\n",true);
+				WriteMessage("Press A to continue\n");
+				wait();
+				input.close();
+				return;
+			}
+			if (type == 3) {
+				WriteMessage("The savefile in the cartdige has to be cleared, press A to continue, B to cancel\n",true);
+				if(wait(true)==KEY_B){
+					input.close();
+					return;
+				}
+				WriteMessage("Deleting the previous savefile\n",true);
+				auxspi_erase(card_type);
+				WriteMessage("Savefile deleted\n");
+			}
+			WriteMessage("Savefile loaded, press A to write it in the cartdige, B to cancel\n",true);
 			if(wait(true)==KEY_B){
-				fclose(pFile);
+				input.close();
 				return;
 			}
 			buffer = (uint8 *)malloc(LEN);
@@ -189,23 +198,35 @@ void restore (auxspi_extra card_type, char gameid[]) {
 			for (unsigned int i = 0; i < num_blocks; i++) {
 				if (i % step == 0)
 					iprintf("#");
-				fread(buffer, 1, LEN, pFile);
+				input.read((char*)buffer, LEN);
 				auxspi_write_data(i << shift, buffer, LEN, type, card_type);
 			}
 		} else {
 			int type = cardEepromGetType();
 			int size = cardEepromGetSize();
+			input.seekg (0, input.end);
+			int length = input.tellg();
+			input.seekg (0, input.beg);
+			if (length!= size){
+				WriteMessage("The size of the loaded file doesn't match the size of the save for the cartdige!\n",true);
+				WriteMessage("Press A to continue\n");
+				wait();
+				input.close();
+				return;
+			}
 			if (type == 3){
 				WriteMessage("The savefile in the cartdige has to be cleared, press A to continue, B to cancel\n",true);
-				if(wait(true)==KEY_B)
+				if(wait(true)==KEY_B){
+					input.close();
 					return;
-				WriteMessage("Deleting the previous savefile\n");
+				}
+				WriteMessage("Deleting the previous savefile\n",true);
 				cardEepromChipErase();
 				WriteMessage("Savefile deleted\n");				
 			}
-			WriteMessage("Savefile loaded, press A to write it in the cartdige, B to cancel\n");
+			WriteMessage("Savefile loaded, press A to write it in the cartdige, B to cancel\n",true);
 			if(wait(true)==KEY_B){
-				fclose(pFile);
+				input.close();
 				return;
 			}
 			int blocks=size/32;
@@ -213,15 +234,17 @@ void restore (auxspi_extra card_type, char gameid[]) {
 			buffer = (uint8 *)malloc(blocks);
 			for (unsigned int i = 0; i < 32; i++) {
 				iprintf("#");
-				fread(buffer, 1, blocks, pFile);
+				input.read((char*)buffer, blocks);
 				cardWriteEeprom(written, buffer, blocks, type);
 				written+=blocks;
 			}
 		}
-		fclose(pFile);
 		free(buffer);
 		WriteMessage("Savefile successfully written!\n");
+	} else {
+		WriteMessage("Savefile not found!\n");
 	}
+	input.close();
 	WriteMessage("Press A to continue\n");
 	wait();
 	return;
