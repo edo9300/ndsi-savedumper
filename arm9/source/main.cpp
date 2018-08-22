@@ -222,14 +222,14 @@ void restore (auxspi_extra card_type, char gameid[]) {
 			unsigned int length = input.tellg();
 			input.seekg (0, input.beg);
 			if (length!= (LEN*num_blocks)){
-				WriteMessage("The size of the loaded file doesn't match the size of the save for the cartdige!\n",true);
+				WriteMessage("The size of the loaded file doesn't match the size of the save for the cartridge!\n",true);
 				WriteMessage("Press A to continue\n");
 				wait();
 				input.close();
 				return;
 			}
 			if (type == 3) {
-				WriteMessage("The savefile in the cartdige has to be cleared, press A to continue, B to cancel\n",true);
+				WriteMessage("The savefile in the cartridge has to be cleared, press A to continue, B to cancel\n",true);
 				if(wait(true)==KEY_B){
 					input.close();
 					return;
@@ -238,7 +238,7 @@ void restore (auxspi_extra card_type, char gameid[]) {
 				auxspi_erase(card_type);
 				WriteMessage("Savefile deleted\n");
 			}
-			WriteMessage("Savefile loaded, press A to write it in the cartdige, B to cancel\n",true);
+			WriteMessage("Savefile loaded, press A to write it in the cartridge, B to cancel\n",true);
 			if(wait(true)==KEY_B){
 				input.close();
 				return;
@@ -258,14 +258,14 @@ void restore (auxspi_extra card_type, char gameid[]) {
 			int length = input.tellg();
 			input.seekg (0, input.beg);
 			if (length!= size){
-				WriteMessage("The size of the loaded file doesn't match the size of the save for the cartdige!\n",true);
+				WriteMessage("The size of the loaded file doesn't match the size of the save for the cartridge!\n",true);
 				WriteMessage("Press A to continue\n");
 				wait();
 				input.close();
 				return;
 			}
 			if (type == 3){
-				WriteMessage("The savefile in the cartdige has to be cleared, press A to continue, B to cancel\n",true);
+				WriteMessage("The savefile in the cartridge has to be cleared, press A to continue, B to cancel\n",true);
 				if(wait(true)==KEY_B){
 					input.close();
 					return;
@@ -274,7 +274,7 @@ void restore (auxspi_extra card_type, char gameid[]) {
 				cardEepromChipErase();
 				WriteMessage("Savefile deleted\n");				
 			}
-			WriteMessage("Savefile loaded, press A to write it in the cartdige, B to cancel\n",true);
+			WriteMessage("Savefile loaded, press A to write it in the cartridge, B to cancel\n",true);
 			if(wait(true)==KEY_B){
 				input.close();
 				return;
@@ -343,7 +343,7 @@ void ShowGameInfo(const char gameid[],const char gamename[]){
 
 void PrintMenu(const char gameid[],const char gamename[]){
 	ShowGameInfo(gameid, gamename);
-	WriteMessage("Press A to dump the save from your cartdige, press B to restore it.\n",true);
+	WriteMessage("Press A to dump the save from your cartridge, press B to restore it.\n",true);
 }
 
 //---------------------------------------------------------------------------------
@@ -373,8 +373,8 @@ int main() {
 	
 	sysSetCardOwner (BUS_OWNER_ARM9);
 	if (REG_SCFG_MC == 0x11) {
-		WriteMessage("No cartdige detected!\n",true);
-		WriteMessage("Please insert a cartdige to continue!\n");
+		WriteMessage("No cartridge detected!\n",true);
+		WriteMessage("Please insert a cartridge to continue!\n");
 		WaitCard();
 	}
 	if(REG_SCFG_MC == 0x10) { 
@@ -384,7 +384,7 @@ int main() {
 	}
 	
 	while(!UpdateCardInfo(&nds,&gameid[0],&gamename[0], &card_type)) {
-		WriteMessage("Cartdige not read properly!\n",true);
+		WriteMessage("Cartridge not read properly!\n",true);
 		WriteMessage("Please reinsert it\n");
 		// Wait until the card is removed, then call the function
 		do { swiWaitForVBlank(); } while (REG_SCFG_MC != 0x11);
@@ -395,11 +395,11 @@ int main() {
 		swiWaitForVBlank();
 		if(REG_SCFG_MC == 0x11){
 			ShowGameInfo("????", "????");
-			WriteMessage("The cartdige was removed!\n",true);
-			WriteMessage("Please insert a cartdige to continue!\n");
+			WriteMessage("The cartridge was removed!\n",true);
+			WriteMessage("Please insert a cartridge to continue!\n");
 			WaitCard();
 			while(!UpdateCardInfo(&nds,&gameid[0],&gamename[0], &card_type)) {
-				WriteMessage("Cartdige not read properly!\n",true);
+				WriteMessage("Cartridge not read properly!\n",true);
 				WriteMessage("Please reinsert it\n");
 				do { swiWaitForVBlank(); } while (REG_SCFG_MC != 0x11);
 				WaitCard();
