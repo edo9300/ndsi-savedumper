@@ -162,7 +162,7 @@ void save (auxspi_extra card_type, char gameid[]) {
 	if(output.is_open()){
 		uint8* buffer;
 		WriteMessage("Creating the savefile\n", true);
-		if(card_type){
+		if(card_type == AUXSPI_INFRARED){
 			int size = auxspi_save_size_log_2(card_type);
 			int size_blocks = 1 << std::max(0, (int8(size) - 18));
 			int type = auxspi_save_type(card_type);
@@ -199,7 +199,7 @@ void restore (auxspi_extra card_type, char gameid[]) {
 	std::ifstream input(txt,std::ifstream::binary);
 	if(input.is_open()){
 		uint8* buffer;
-		if(card_type){
+		if(card_type == AUXSPI_INFRARED){
 			uint8 size = auxspi_save_size_log_2(card_type);
 			int type = auxspi_save_type(card_type);
 			u32 num_blocks = 0, shift = 0;
