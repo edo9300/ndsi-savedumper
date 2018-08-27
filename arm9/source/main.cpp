@@ -191,13 +191,17 @@ void restore(auxspi_extra card_type, char gameid[]) {
 	WriteMessage(txt, true);
 	WriteMessage("Press X to manually select the file to load (use this also if garbage text is displayed)\n");
 	NameUpdate(gameid, false);
+	bool auxspi = card_type == AUXSPI_INFRARED;
 	std::ifstream input(txt, std::ifstream::binary);
 	if(input.is_open()) {
 		unsigned char* buffer;
-		if(card_type == AUXSPI_INFRARED) {
-			unsigned char size = auxspi_save_size_log_2(card_type);
-			int type = auxspi_save_type(card_type);
-			u32 num_blocks = 0, shift = 0;
+		int size;
+		int type;
+		int length;
+		unsigned int num_blocks = 0, shift = 0, LEN = 0;
+		if(auxspi) {
+			size = auxspi_save_size_log_2(card_type);
+			type = auxspi_save_type(card_type);
 			switch(type) {
 			case 1:
 				shift = 4; // 16 bytes
@@ -211,33 +215,41 @@ void restore(auxspi_extra card_type, char gameid[]) {
 			default:
 				return;
 			}
-			u32 LEN = 1 << shift;
+			LEN = 1 << shift;
 			num_blocks = 1 << (size - shift);
-			input.seekg(0, input.end);
-			unsigned int length = input.tellg();
-			input.seekg(0, input.beg);
-			if(length != (LEN*num_blocks)) {
-				WriteMessage("The size of the loaded file doesn't match the size of the save for the cartridge!\n", true);
-				WriteMessage("Press A to continue\n");
-				wait();
-				input.close();
-				return;
-			}
-			if(type == 3) {
-				WriteMessage("The savefile in the cartridge has to be cleared, press A to continue, B to cancel\n", true);
-				if(wait(true) == KEY_B) {
-					input.close();
-					return;
-				}
-				WriteMessage("Deleting the previous savefile\n", true);
-				auxspi_erase(card_type);
-				WriteMessage("Savefile deleted\n");
-			}
-			WriteMessage("Savefile loaded, press A to write it in the cartridge, B to cancel\n", true);
+		} else {
+			type = cardEepromGetType();
+			size = cardEepromGetSize();
+		}
+		input.seekg(0, input.end);
+		length = input.tellg();
+		input.seekg(0, input.beg);
+		if(length != (auxspi ? (int)(LEN*num_blocks) : size)) {
+			WriteMessage("The size of the loaded file doesn't match the size of the save for the cartridge!\n", true);
+			WriteMessage("Press A to continue\n");
+			wait();
+			input.close();
+			return;
+		}
+		if(type == 3) {
+			WriteMessage("The savefile in the cartridge has to be cleared, press A to continue, B to cancel\n", true);
 			if(wait(true) == KEY_B) {
 				input.close();
 				return;
 			}
+			WriteMessage("Deleting the previous savefile\n", true);
+			if(auxspi)
+				auxspi_erase(card_type);
+			else
+				cardEepromChipErase();
+			WriteMessage("Savefile deleted\n");
+		}
+		WriteMessage("Savefile loaded, press A to write it in the cartridge, B to cancel\n", true);
+		if(wait(true) == KEY_B) {
+			input.close();
+			return;
+		}
+		if(auxspi){
 			buffer = new unsigned char[LEN];
 			int step = num_blocks / 32;
 			for(unsigned int i = 0; i < num_blocks; i++) {
@@ -247,33 +259,6 @@ void restore(auxspi_extra card_type, char gameid[]) {
 				auxspi_write_data(i << shift, buffer, LEN, type, card_type);
 			}
 		} else {
-			int type = cardEepromGetType();
-			int size = cardEepromGetSize();
-			input.seekg(0, input.end);
-			int length = input.tellg();
-			input.seekg(0, input.beg);
-			if(length != size) {
-				WriteMessage("The size of the loaded file doesn't match the size of the save for the cartridge!\n", true);
-				WriteMessage("Press A to continue\n");
-				wait();
-				input.close();
-				return;
-			}
-			if(type == 3) {
-				WriteMessage("The savefile in the cartridge has to be cleared, press A to continue, B to cancel\n", true);
-				if(wait(true) == KEY_B) {
-					input.close();
-					return;
-				}
-				WriteMessage("Deleting the previous savefile\n", true);
-				cardEepromChipErase();
-				WriteMessage("Savefile deleted\n");
-			}
-			WriteMessage("Savefile loaded, press A to write it in the cartridge, B to cancel\n", true);
-			if(wait(true) == KEY_B) {
-				input.close();
-				return;
-			}
 			int blocks = size / 32;
 			int written = 0;
 			buffer = new unsigned char[blocks];
